@@ -156,6 +156,7 @@ static constexpr uint16_t win_10_1803_ver   = 17134;
 static constexpr uint16_t win_serv_2019_ver = 17763;
 static constexpr uint16_t win_10_21h2_ver   = 19044;
 static constexpr uint16_t win_10_22h2_ver   = 19045;
+static constexpr uint16_t win_10_23h2_ver   = 22631;
 
 static const std::unordered_map<uint16_t, udp_offsets_t> udp_offsets_x86 =
 {
@@ -242,6 +243,16 @@ static const std::unordered_map<uint16_t, udp_offsets_t> udp_offsets_x64 =
             .remote_port = 0x110,
             .remote_addr = 0x120
         }
+    },
+    {
+        win_10_23h2_ver,
+        {
+            .family_1    = 0x20,
+            .family_2    = 0x18,
+            .local_port  = 0xA0,
+            .remote_port = 0x128,
+            .remote_addr = 0x130
+        }
     }
 };
 
@@ -325,7 +336,7 @@ static char const* tcp_addressfamily_string(int family)
 static void print_udp_info(drakvuf_t drakvuf, drakvuf_trap_info_t* info, socketmon* s, proc_data_t const& owner_proc_data, int addressfamily, char const* lip, int localport, char const* rip, int remoteport)
 {
     fmt::print(s->format, "socketmon", drakvuf, info,
-        keyval("Owner", fmt::Qstr(owner_proc_data.name)),
+        keyval("Owner", fmt::Estr(owner_proc_data.name)),
         keyval("OwnerId", fmt::Nval(owner_proc_data.userid)),
         keyval("OwnerPID", fmt::Nval(owner_proc_data.pid)),
         keyval("OwnerPPID", fmt::Nval(owner_proc_data.ppid)),
@@ -341,7 +352,7 @@ static void print_tcpe(drakvuf_t drakvuf, drakvuf_trap_info_t* info, socketmon* 
     int addressfamily, char const* lip, int localport, char const* rip, int remoteport)
 {
     fmt::print(s->format, "socketmon", drakvuf, info,
-        keyval("Owner", fmt::Qstr(owner_proc_data.name)),
+        keyval("Owner", fmt::Estr(owner_proc_data.name)),
         keyval("OwnerId", fmt::Nval(owner_proc_data.userid)),
         keyval("OwnerPID", fmt::Nval(owner_proc_data.pid)),
         keyval("OwnerPPID", fmt::Nval(owner_proc_data.ppid)),
@@ -434,17 +445,16 @@ static uint16_t tcp_get_family(vmi_instance_t vmi, addr_t rcx, addr_t build)
     uint16_t family = 0;
     const uint16_t* offsets = nullptr;
 
-    switch (build)
-    {
-        case win_7_sp1_ver:
-            offsets = win7_sp1_tcp_offsets;
-            break;
-        case win_10_1803_ver:
-            offsets = win10_1803_tcp_offsets;
-            break;
-        default:
-            return 0;
-    };
+    if (build == win_7_sp1_ver)
+        offsets = win7_sp1_tcp_offsets;
+    else if (build == win_10_1803_ver)
+        offsets = win10_1803_tcp_offsets;
+    else if (build == win_serv_2019_ver)
+        offsets = winserv_2019_tcp_offsets;
+    else if (build >= win_10_21h2_ver && build <= win_10_23h2_ver)
+        offsets = win10_21h2_win10_23h2_tcp_offsets;
+    else
+        return 0;
 
     if (VMI_SUCCESS != vmi_read_addr_va(vmi, rcx + offsets[IP_FAMILY_OFF0], 0, &ptr))
         return 0;
@@ -459,17 +469,16 @@ static std::pair<uint16_t, uint16_t> tcp_get_port(vmi_instance_t vmi, addr_t rcx
     uint16_t rport = 0, lport = 0;
     const uint16_t* offsets = nullptr;
 
-    switch (build)
-    {
-        case win_7_sp1_ver:
-            offsets = win7_sp1_tcp_offsets;
-            break;
-        case win_10_1803_ver:
-            offsets = win10_1803_tcp_offsets;
-            break;
-        default:
-            return std::make_pair(0, 0);
-    };
+    if (build == win_7_sp1_ver)
+        offsets = win7_sp1_tcp_offsets;
+    else if (build == win_10_1803_ver)
+        offsets = win10_1803_tcp_offsets;
+    else if (build == win_serv_2019_ver)
+        offsets = winserv_2019_tcp_offsets;
+    else if (build >= win_10_21h2_ver && build <= win_10_23h2_ver)
+        offsets = win10_21h2_win10_23h2_tcp_offsets;
+    else
+        return std::make_pair(0, 0);
 
     vmi_read_16_va(vmi, rcx + offsets[LOCAL_PORT],  0, &lport);
     vmi_read_16_va(vmi, rcx + offsets[REMOTE_PORT], 0, &rport);
@@ -489,17 +498,16 @@ static char* tcp_get_addr(vmi_instance_t vmi, addr_t rcx, addr_t build, uint16_t
 
     const uint16_t* offsets = nullptr;
 
-    switch (build)
-    {
-        case win_7_sp1_ver:
-            offsets = win7_sp1_tcp_offsets;
-            break;
-        case win_10_1803_ver:
-            offsets = win10_1803_tcp_offsets;
-            break;
-        default:
-            return nullptr;
-    };
+    if (build == win_7_sp1_ver)
+        offsets = win7_sp1_tcp_offsets;
+    else if (build == win_10_1803_ver)
+        offsets = win10_1803_tcp_offsets;
+    else if (build == win_serv_2019_ver)
+        offsets = winserv_2019_tcp_offsets;
+    else if (build >= win_10_21h2_ver && build <= win_10_23h2_ver)
+        offsets = win10_21h2_win10_23h2_tcp_offsets;
+    else
+        return nullptr;
 
 
     if (VMI_SUCCESS != vmi_read_addr_va(vmi, rcx + offsets[REMOTE_ADDR_OFF0], 0, &ptr))
@@ -938,7 +946,7 @@ static void register_dnsapi_trap( drakvuf_t drakvuf, drakvuf_trap_t* trap,
 
 socketmon::socketmon(drakvuf_t drakvuf_, const socketmon_config* c, output_format_t output)
     : format{output}
-    , drakvuf{drakvuf_}
+    , drakvuf(drakvuf_)
 {
     this->pm = drakvuf_get_page_mode(drakvuf);
     {
@@ -997,7 +1005,7 @@ socketmon::socketmon(drakvuf_t drakvuf_, const socketmon_config* c, output_forma
                 break;
             case VMI_OS_WINDOWS_10:
                 if (this->build.buildnumber < 17134)
-                    // Tested on Windows 10 x64 before 1803
+                    // Tested on Windows 10 x64 before 1803 and on WinServ 2016-1198
                     tcpe_cb = tcpe_win10_x64_cb;
                 break;
             case VMI_OS_WINDOWS_7:
@@ -1024,12 +1032,14 @@ socketmon::socketmon(drakvuf_t drakvuf_, const socketmon_config* c, output_forma
 
 socketmon::~socketmon()
 {
+    stop();
 }
 
 bool socketmon::stop_impl()
 {
     drakvuf_remove_trap(drakvuf, &this->tcpip_trap[0], nullptr);
-    drakvuf_remove_trap(drakvuf, &this->tcpip_trap[1], nullptr);
+    if (this->pm == VMI_PM_IA32E)
+        drakvuf_remove_trap(drakvuf, &this->tcpip_trap[1], nullptr);
 
     drakvuf_remove_trap(drakvuf, &this->dnsapi_traps[0], nullptr);
     drakvuf_remove_trap(drakvuf, &this->dnsapi_traps[1], nullptr);
