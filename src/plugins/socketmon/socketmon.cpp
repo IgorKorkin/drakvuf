@@ -336,7 +336,7 @@ static char const* tcp_addressfamily_string(int family)
 static void print_udp_info(drakvuf_t drakvuf, drakvuf_trap_info_t* info, socketmon* s, proc_data_t const& owner_proc_data, int addressfamily, char const* lip, int localport, char const* rip, int remoteport)
 {
     fmt::print(s->format, "socketmon", drakvuf, info,
-        keyval("Owner", fmt::Estr(owner_proc_data.name)),
+        keyval("Owner", fmt::Qstr(owner_proc_data.name)),
         keyval("OwnerId", fmt::Nval(owner_proc_data.userid)),
         keyval("OwnerPID", fmt::Nval(owner_proc_data.pid)),
         keyval("OwnerPPID", fmt::Nval(owner_proc_data.ppid)),
@@ -352,7 +352,7 @@ static void print_tcpe(drakvuf_t drakvuf, drakvuf_trap_info_t* info, socketmon* 
     int addressfamily, char const* lip, int localport, char const* rip, int remoteport)
 {
     fmt::print(s->format, "socketmon", drakvuf, info,
-        keyval("Owner", fmt::Estr(owner_proc_data.name)),
+        keyval("Owner", fmt::Qstr(owner_proc_data.name)),
         keyval("OwnerId", fmt::Nval(owner_proc_data.userid)),
         keyval("OwnerPID", fmt::Nval(owner_proc_data.pid)),
         keyval("OwnerPPID", fmt::Nval(owner_proc_data.ppid)),
